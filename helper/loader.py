@@ -10,6 +10,7 @@ import os
 import numpy as np
 
 from helper import utilty as util
+import cv2
 
 INPUT_IMAGE_DIR = "input"
 INTERPOLATED_IMAGE_DIR = "interpolated"
@@ -44,6 +45,38 @@ def load_input_image(filename, width=0, height=0, channels=1, scale=1, alignment
     return build_input_image(image, width, height, channels, scale, alignment, convert_ycbcr, jpeg_mode)
 
 
+def my_jpeg(x, q):
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), q]
+    x = x.astype(np.uint8)
+    r, g, b = cv2.split(x)
+    bgr_img = cv2.merge([b, g, r])
+    _, enc_img = cv2.imencode('.jpg', bgr_img, encode_param)
+    dec_img = cv2.imdecode(enc_img, 1)
+    b, g, r = cv2.split(dec_img)
+    rgb_img = cv2.merge([r, g, b])
+    return rgb_img
+
+
+def shuffle_jpeg_quality_list(lowest_q):
+    lowest_is_last = np.random.random() > 0.4
+    l = list(range(lowest_q // 10 + 1, 10)) if lowest_is_last else list(range(lowest_q // 10, 10))
+    np.random.shuffle(l)
+    l = list(map(lambda x: x * 10, l))
+    if lowest_is_last:
+        l.append(lowest_q)
+    return l
+
+
+def shuffle_jpeg_noise(x, noise_level):
+    shuffle_quality_list = shuffle_jpeg_quality_list(100 - 5 * noise_level)
+    for q in shuffle_quality_list:
+        x = my_jpeg(x, q)
+    return x
+
+
+def add_jpeg_noise(image):
+    return shuffle_jpeg_noise(image, 6)
+
 def build_input_image(image, width=0, height=0, channels=1, scale=1, alignment=0, convert_ycbcr=True, jpeg_mode=False):
     """
     build input image from file.
@@ -59,6 +92,7 @@ def build_input_image(image, width=0, height=0, channels=1, scale=1, alignment=0
     if image.shape[2] >= 4:
         image = image[:, :, 0:3]
 
+    image = add_jpeg_noise(image)
     if alignment > 1:
         image = util.set_image_alignment(image, alignment)
 
