@@ -665,6 +665,54 @@ class SuperResolution:
             print("MSE:%f PSNR:%f" % (mse, util.get_psnr(mse)))
         return mse
 
+    def my_do_for_evaluate(self, file_path, output_directory="output", output=True, print_console=True):
+
+        filename, extension = os.path.splitext(file_path)
+        output_directory += "/"
+        true_image = util.set_image_alignment(util.load_image(file_path), self.scale)
+
+        if true_image.shape[2] == 3 and self.channels == 1:
+            # input_y_image = loader.build_input_image(true_image, channels=self.channels, scale=self.scale,
+            #                                          alignment=self.scale, convert_ycbcr=True, jpeg_mode=self.jpeg_mode)
+            input_y_image = true_image
+            # for color images
+            if output:
+                input_bicubic_y_image = util.resize_image_by_pil(input_y_image, self.scale)
+                # true_ycbcr_image = util.convert_rgb_to_ycbcr(true_image, jpeg_mode=self.jpeg_mode)
+
+                output_y_image = self.do(input_y_image, input_bicubic_y_image)
+                # mse = util.compute_mse(true_ycbcr_image[:, :, 0:1], output_y_image, border_size=self.scale)
+                # loss_image = util.get_loss_image(true_ycbcr_image[:, :, 0:1], output_y_image, border_size=self.scale)
+                #
+                # output_color_image = util.convert_y_and_cbcr_to_rgb(output_y_image, true_ycbcr_image[:, :, 1:3],
+                #                                                     jpeg_mode=self.jpeg_mode)
+
+                util.save_image(output_directory + file_path, true_image)
+                util.save_image(output_directory + filename + "_input" + extension, input_y_image)
+                util.save_image(output_directory + filename + "_input_bicubic" + extension, input_bicubic_y_image)
+                # util.save_image(output_directory + filename + "_true_y" + extension, true_ycbcr_image[:, :, 0:1])
+                util.save_image(output_directory + filename + "_result" + extension, output_y_image)
+                # util.save_image(output_directory + filename + "_result_c" + extension, output_color_image)
+                # util.save_image(output_directory + filename + "_loss" + extension, loss_image)
+            else:
+                true_y_image = util.convert_rgb_to_y(true_image, jpeg_mode=self.jpeg_mode)
+                output_y_image = self.do(input_y_image)
+                mse = util.compute_mse(true_y_image, output_y_image, border_size=self.scale)
+
+        elif true_image.shape[2] == 1 and self.channels == 1:
+
+            # for monochrome images
+            input_image = loader.build_input_image(true_image, channels=self.channels, scale=self.scale,
+                                                   alignment=self.scale)
+            output_image = self.do(input_image)
+            mse = util.compute_mse(true_image, output_image, border_size=self.scale)
+            if output:
+                util.save_image(output_directory + file_path, true_image)
+                util.save_image(output_directory + filename + "_result" + extension, output_image)
+        mse = 1.0
+
+        return mse
+
     def init_train_step(self):
         self.lr = self.initial_lr
         self.csv_epochs = []
